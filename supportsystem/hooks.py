@@ -150,7 +150,9 @@ doc_events = {
         "after_insert": "supportsystem.supportsystem.custom.custom_hd_ticket.after_insert",
     }
 }
-
+doctype_js = {
+    "HD Ticket": "public/js/hd_ticket.js"
+}
 # Scheduled Tasks
 # ---------------
 
