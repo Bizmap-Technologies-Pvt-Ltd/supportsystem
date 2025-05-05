@@ -5,13 +5,12 @@ import json
 
 @frappe.whitelist()
 def after_insert(doc, method):
-	if doc.reference_doctype == "HD Ticket":
+	if doc.reference_doctype == "Issue":
 		if doc.custom_is_system_generated == 0:
 			admin_comment(doc)
 
 def admin_comment(doc):
-
-	ticket = frappe.get_doc("HD Ticket",doc.reference_name)
+	ticket = frappe.get_doc("Issue",doc.reference_name)
 
 	headers = {
 		"Authorization": f"token {ticket.get_password('custom_reference_ticket_token')}"

@@ -145,13 +145,16 @@ app_license = "mit"
 # 	}
 # }
 doc_events = {
-    'HD Ticket':{
+    'Issue':{
         "validate": "supportsystem.supportsystem.custom.custom_hd_ticket.validate",
         "after_insert": "supportsystem.supportsystem.custom.custom_hd_ticket.after_insert",
+    },
+    "Comment": {
+        "after_insert": "supportsystem.supportsystem.custom.custom_hd_comment.after_insert"
     }
 }
 doctype_js = {
-    "HD Ticket": "public/js/hd_ticket.js"
+    "Issue": "public/js/issue.js"
 }
 # Scheduled Tasks
 # ---------------

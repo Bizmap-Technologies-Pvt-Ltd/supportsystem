@@ -22,16 +22,19 @@
    "default": "now",
    "fieldname": "date",
    "fieldtype": "Date",
+   "in_list_view": 1,
    "label": "Date"
   },
   {
    "fieldname": "status",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Status"
   },
   {
    "fieldname": "added_by",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Added By"
   },
   {
@@ -43,7 +46,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-04-29 23:38:58.341795",
+ "modified": "2025-05-03 15:44:35.757603",
  "modified_by": "Administrator",
  "module": "Supportsystem",
  "name": "Ticket Timeline Entry",

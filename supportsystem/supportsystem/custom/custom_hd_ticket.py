@@ -1,6 +1,5 @@
 from frappe.utils import today
 from frappe.utils.user import get_user_fullname
-from helpdesk.helpdesk.doctype.hd_ticket.hd_ticket import HDTicket
 import frappe
 import requests
 
@@ -12,7 +11,7 @@ def after_insert(doc=None, method=None):
                 "date": today(),
                 "status": doc.custom_ticket_status,
                 "note": "Ticket created with status Open",
-                "added_by": doc.custom_created_by_name
+                "added_by": doc.custom_created_byname
             })
             doc.save()
 
@@ -78,15 +77,15 @@ def update_status(doc=None, method=None):
     
 @frappe.whitelist()
 def set_status(doc):
-	for d in frappe.get_all("HD Ticket",{'custom_reference_ticket_id': doc['custom_reference_ticket_id']}):
-		hdTicket = frappe.get_doc("HD Ticket", d.name)
+    for d in frappe.get_all("Issue",{'custom_reference_ticket_id': doc['custom_reference_ticket_id']}):
+        hdTicket = frappe.get_doc("Issue", d.name)
 
-		hdTicket.custom_ticket_status = doc['status']
-		if doc['status'] == 'Closed':
-			hdTicket.feedback_text = doc.get('feedback_option')
-			hdTicket.feedback_extra = doc.get('feedback_extra')
-			hdTicket.feedback_rating = doc.get('rating')
-		hdTicket.save()
+        hdTicket.custom_ticket_status = doc['custom_ticket_status']
+        if doc['custom_ticket_status'] == 'Closed':
+            hdTicket.custom_feedback = doc.get('custom_feedback_option')
+            hdTicket.custom_feedback_extra = doc.get('custom_feedback_extra')
+            hdTicket.custom_feedback_rating = doc.get('custom_rating')
+        hdTicket.save(ignore_permissions=True)
             
 
 
@@ -127,8 +126,8 @@ def make_timeline_entry(**kwargs):
     if not data.parent:
         frappe.throw("Parent ticket ID is required.")
 
-    # Load the parent HD Ticket
-    ticket = frappe.get_doc("HD Ticket", data.parent)
+    # Load the parent Issue
+    ticket = frappe.get_doc("Issue", data.parent)
     # frappe.throw(f"Ticket: {ticket.name}")
     # Append a new entry to the timeline
     ticket.append("custom_ticket_timeline", {

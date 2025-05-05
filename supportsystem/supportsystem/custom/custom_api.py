@@ -8,13 +8,13 @@ from frappe.utils import now_datetime, add_days
 
 @frappe.whitelist()
 def received_comment(doc):	
-	for d in frappe.get_all("HD Ticket",{'custom_reference_ticket_id': doc['reference_name']}):
-		hdTicket = frappe.get_doc("HD Ticket", d.name)
+	for d in frappe.get_all("Issue",{'custom_reference_ticket_id': doc['reference_name']}):
+		issueticket = frappe.get_doc("Issue", d.name)
 
 		cmt = frappe.new_doc("Comment")
 		cmt.comment_type = "Comment"
-		cmt.reference_doctype = "HD Ticket"
-		cmt.reference_name = hdTicket.name
+		cmt.reference_doctype = "Issue"
+		cmt.reference_name = issueticket.name
 		cmt.comment_email = doc['comment_email']
 		cmt.comment_by = doc['comment_by']
 		cmt.content = doc['content']
@@ -25,7 +25,7 @@ def received_comment(doc):
 
 		frappe.db.set_value("Comment", cmt.name, "owner", doc['comment_by'])
 		frappe.db.commit()
-	
+    
     
     
 @frappe.whitelist(allow_guest=True)
@@ -35,7 +35,7 @@ def custom_new(doc=None, attachments=None):
         doc = json.loads(doc)
 
     # frappe.throw("custom_new")
-    doc["doctype"] = "HD Ticket"
+    doc["doctype"] = "Issue"
     doc["via_customer_portal"] = bool(frappe.session.user)
 
     d = frappe.get_doc(doc)
@@ -49,8 +49,8 @@ def custom_new(doc=None, attachments=None):
             # Get the File document
             file_doc = frappe.get_doc("File", {"file_url": file_url})
 
-            # Attach it to the HD Ticket
-            file_doc.attached_to_doctype = "HD Ticket"
+            # Attach it to the Issue
+            file_doc.attached_to_doctype = "Issue"
             file_doc.attached_to_name = d.name
             file_doc.save(ignore_permissions=True)
 
@@ -95,7 +95,7 @@ def trigger_n8n_webhook(title, description):
 
 @frappe.whitelist()
 def build_timeline_graph(docname):
-    doc = frappe.get_doc("HD Ticket", docname)
+    doc = frappe.get_doc("Issue", docname)
 
     timeline = sorted(doc.ticket_timeline, key=lambda x: x.timestamp)
 

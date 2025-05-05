@@ -1,6 +1,5 @@
-frappe.ui.form.on("HD Ticket", {
+frappe.ui.form.on("Issue", {
 	refresh(frm) {
-
         frm.add_custom_button(__('Go to Client System'), function() {
 
             const generatedUrl = generateOAuth2Link(frm.doc.custom_client_url, frm.doc.custom_reference_ticket_token);
@@ -12,15 +11,17 @@ frappe.ui.form.on("HD Ticket", {
 	},
     validate(frm){
 
-        if (!frm.doc.custom_app_name && frm.doc.custom_client_url) {
-
-            frappe.db.get_value('Customer', { website: frm.doc.custom_client_url }, 'customer_name')
-                .then(r => {
-                    if (r && r.message && r.message.customer_name) {
-                        frm.db.set_value('custom_app_name', r.message.customer_name);
-                    }
-                });
-        }
+      if (!frm.doc.customer && frm.doc.custom_client_url) {
+        frappe.db.get_value('Customer', { 'website': frm.doc.custom_client_url }, 'customer_name')
+            .then(r => {
+                if (r && r.message && r.message.customer_name) {
+                    frm.set_value('customer', r.message.customer_name);
+                    console.log("Customer set to: ", r.message.customer_name);
+                } else {
+                    frappe.throw(__('No customer found with the given client URL.'));
+                }
+            });
+    }
     },
     custom_post_to_git: function (frm) { 
         frappe.call({ 
@@ -165,5 +166,5 @@ function render_timeline_graph(frm) {
     });
 
     html += `</div>`;
-    frm.fields_dict.custom_timeline_graph.$wrapper.html(html);
+    frm.fields_dict.custom_ticket_timeline_graph.$wrapper.html(html);
 }
