@@ -156,6 +156,15 @@ doc_events = {
 doctype_js = {
     "Issue": "public/js/issue.js"
 }
+
+fixtures = [
+    {
+        "doctype": "Custom Field",
+        "filters": {
+            "dt": ["=", "Issue"]
+        }
+    }
+]
 # Scheduled Tasks
 # ---------------
 
