@@ -3,6 +3,9 @@ import json
 import frappe
 import requests
 from frappe.utils import now_datetime, add_days
+import re
+from frappe.query_builder import DocType
+from frappe.query_builder.functions import Concat_ws
 
 
 
@@ -10,6 +13,7 @@ from frappe.utils import now_datetime, add_days
 def received_comment(doc):	
 	for d in frappe.get_all("Issue",{'custom_reference_ticket_id': doc['reference_name']}):
 		issueticket = frappe.get_doc("Issue", d.name)
+        # customer = frappe.db.get_value("Issue", issueticket.name, "customer")
 
 		cmt = frappe.new_doc("Comment")
 		cmt.comment_type = "Comment"
@@ -17,7 +21,7 @@ def received_comment(doc):
 		cmt.reference_name = issueticket.name
 		cmt.comment_email = doc['comment_email']
 		cmt.comment_by = doc['comment_by']
-		cmt.content = doc['content']
+		cmt.content = doc['content']+f"\n{doc['comment_by']} from {issueticket.customer}."
 		cmt.custom_is_system_generated = 1
 
 		frappe.logger().debug(f"Current User: {frappe.session.user}, Roles: {frappe.get_roles()}")
@@ -55,6 +59,8 @@ def custom_new(doc=None, attachments=None):
             file_doc.save(ignore_permissions=True)
 
     # d.create_communication_via_contact(d.description, attachments)
+    # frappe.delete_doc("Communication", {'reference_name': d.name})
+    # frappe.db.commit()
     return d
 
 
@@ -62,7 +68,7 @@ def custom_new(doc=None, attachments=None):
 @frappe.whitelist()
 def trigger_n8n_webhook(title, description):
 	# n8n Webhook URL
-	webhook_url = "http://localhost:5678/webhook/get-issue"
+	webhook_url = "http://159.65.158.127:5678/webhook/get-issue"
 	# Payload for n8n
 	payload = {
 		"title": title,
@@ -152,3 +158,68 @@ def auto_close_ticket():
         doc.status = "Closed"
         doc.save(ignore_permissions=True)
         frappe.db.commit() 
+        
+@frappe.whitelist()
+def send_details_to_client(doc=None, method=None):
+    try:
+            doc = json.loads(doc)
+            session = requests.Session()
+            status = doc.get('custom_ticket_status')
+            resolution_details = doc.get('resolution_details')
+
+            idoc = frappe.get_doc("Issue", doc.get('name')) 
+
+            url = f"{idoc.custom_client_url}/api/resource/Ticket Details/{doc.get('custom_reference_ticket_id')}"
+            headers = {
+                "Authorization": f"token {idoc.get_password('custom_reference_ticket_token')}"
+            }
+            data = {
+                "status": status,
+                "resolution_details": resolution_details,
+                "category": doc.get("custom_category")
+            }
+
+            response = requests.put(url, headers=headers, json=data)
+            frappe.log_error(f"URL: {url}\nHEADERS: {headers}\nDATA: {data}\nResponse: {response}","PUT Data info")
+ 
+    except Exception as e:
+        frappe.log_error(f"set_status error:\n\n {str(e)}")
+
+@frappe.whitelist()
+def sync_timeline_to_support_system(doc):
+    doc = json.loads(doc)
+    idoc = frappe.get_doc("Issue", doc.get('name'))
+
+    if(idoc and doc.get('custom_ticket_status') != idoc.custom_ticket_status):
+        try:
+            timeline_entry = idoc.get('custom_ticket_timeline')[-1] if idoc.get('custom_ticket_timeline') else None
+            if timeline_entry:
+                headers = {
+                    "Authorization": f"token {idoc.get_password('custom_reference_ticket_token')}"
+                }
+
+                url = f"{idoc.custom_client_url}/api/resource/Ticket Timeline Entry"
+                data = {
+                    "parent": idoc.custom_reference_ticket_id,
+                    "parenttype": "Ticket Details",
+                    "parentfield": "ticket_timeline",
+                    "date": frappe.utils.today(),       
+                    "status": doc.get('custom_ticket_status'),
+                    "notes": timeline_entry.notes,
+                    "added_by": get_user_fullname(frappe.session.user),
+                }
+                response = requests.post(url, headers=headers, json=data)
+                frappe.log_error(f"URL: {url}\nHEADERS: {headers}\nDATA: {data}\nResponse: {response}","PUT Data info")
+        except Exception as e:
+            frappe.log_error(f"timeline sync error:\n\n {str(e)}")
+
+def get_user_fullname(user: str) -> str:
+	user_doctype = DocType("User")
+	return (
+		frappe.get_value(
+			user_doctype,	
+			filters={"name": user},
+			fieldname=Concat_ws(" ", user_doctype.first_name, user_doctype.last_name),
+		)
+		or ""
+	)

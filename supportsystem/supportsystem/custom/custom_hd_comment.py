@@ -5,7 +5,7 @@ import json
 
 @frappe.whitelist()
 def after_insert(doc, method):
-	if doc.reference_doctype == "Issue":
+	if doc.reference_doctype == "Issue" and doc.comment_type == "Comment":
 		if doc.custom_is_system_generated == 0:
 			admin_comment(doc)
 
@@ -36,3 +36,17 @@ def admin_comment(doc):
 		json=payload,
 		timeout=10  
 	)
+	frappe.log_error(f"Response: {response.text}", " recieve host comment - API Response Debug")
+	# url = f"{ticket.custom_client_url}/api/resource/Notification Log"
+	# notification_data = {
+	# 	"for_user": ticket.custom_created_byemail,
+	# 	"subject": f"!!!!!!!! {ticket.custom_reference_ticket_id}",
+	# 	"message": f"New comment added by {doc.comment_email} on ticket {ticket.custom_reference_ticket_id}",
+	# 	"document_type": doc.reference_doctype,
+	# 	"document_name": doc.reference_name,
+	# 	"from_user": doc.owner,
+	# 	"type": "Alert"
+	# 	}
+	# response = requests.post(url=url, headers=headers, json=notification_data)
+	# frappe.log_error(f"HEADERS: {headers} \nresponse {response} \nData: {notification_data}", "API Auth Headers Debug")
+	# frappe.throw(f'{response}')

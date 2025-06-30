@@ -1,28 +1,69 @@
 frappe.ui.form.on("Issue", {
 	refresh(frm) {
-        frm.add_custom_button(__('Go to Client System'), function() {
+        // frm.add_custom_button(__('Go to Client System'), function() {
 
-            const generatedUrl = generateOAuth2Link(frm.doc.custom_client_url, frm.doc.custom_reference_ticket_token);
-            window.open(generatedUrl, '_blank');
+        //     const generatedUrl = generateOAuth2Link(frm.doc.custom_client_url, frm.doc.custom_reference_ticket_token);
+        //     window.open(generatedUrl, '_blank');
             
-        });
+        // });
           if (!frm.doc.custom_ticket_timeline || frm.doc.custom_ticket_timeline.length === 0) return;
           render_timeline_graph(frm);
-	},
-    validate(frm){
 
-      if (!frm.doc.customer && frm.doc.custom_client_url) {
-        frappe.db.get_value('Customer', { 'website': frm.doc.custom_client_url }, 'customer_name')
-            .then(r => {
-                if (r && r.message && r.message.customer_name) {
-                    frm.set_value('customer', r.message.customer_name);
-                    console.log("Customer set to: ", r.message.customer_name);
-                } else {
-                    frappe.throw(__('No customer found with the given client URL.'));
-                }
-            });
+          if (frm.doc.custom_rating || frm.doc.custom_feedback|| frm.doc.custom_feedback_extra){
+            frm.set_df_property("custom_customer_feedback", "hidden", '0')
+          }
+          else{
+            frm.set_df_property("custom_customer_feedback", "hidden", '1')
+          }
+	},
+  validate: function(frm) {
+
+    if(frm._previous_resolution != frm.doc.resolution_details){
+        frm.doc.custom_ticket_status = 'Resolved'
     }
-    },
+
+
+      if (!frm.is_new() && frm.doc.custom_ticket_status !== frm._previous_status){
+        
+        frm.add_child("custom_ticket_timeline", {
+                timestamp: frappe.datetime.now_datetime(),
+                date: frappe.datetime.get_today(),
+                status: frm.doc.custom_ticket_status,
+                notes: `Status changed from .. to ${frm.doc.custom_ticket_status}`,
+                added_by: frappe.user_info(frappe.session.user).fullname
+            });
+
+        frappe.call({
+          method: 'supportsystem.supportsystem.custom.custom_api.sync_timeline_to_support_system',
+          args: {
+            doc: frm.doc
+          },
+          callback: function(r) {
+            if (r.message) {
+
+            } 
+          }
+        });
+      
+    
+      }
+      frm._previous_status = frm.doc.custom_ticket_status;
+      frm._previous_resolution = frm.doc.resolution_details;
+  },
+  after_save: function(frm){
+
+    frappe.call({
+      method: 'supportsystem.supportsystem.custom.custom_api.send_details_to_client',
+      args: {
+        doc: frm.doc
+      },
+      callback: function(r) {
+        if (r.message) {
+        }
+      }
+    });
+    
+  },
     custom_post_to_git: function (frm) { 
         frappe.call({ 
             method: 'supportsystem.supportsystem.custom.custom_api.trigger_n8n_webhook', 
@@ -69,6 +110,10 @@ frappe.ui.form.on("Issue", {
       });
     },
     onload(frm){
+
+      frm._previous_status = frm.doc.custom_ticket_status;
+      frm._previous_resolution = frm.doc.resolution_details;
+
         frappe.db.get_value("File", {
           attached_to_doctype: frm.doctype,
           attached_to_name: frm.doc.name
@@ -78,18 +123,24 @@ frappe.ui.form.on("Issue", {
             
           }
         });
-        if (frm.doc.category) {
-          const category_key = frappe.scrub(frm.doc.category); // Converts "Doubt" -> "doubt"
-    
-          frm.set_query("status", function () {
-            console.log("Category Key: ", category_key);
-              return {
-                  filters: {
-                      [category_key]: 1
-                  }
-              };
-            });
+        if (frm.doc.custom_rating || frm.doc.custom_feedback|| frm.doc.custom_feedback_extra){
+            frm.set_df_property("custom_customer_feedback", "hidden", '0')
           }
+          else{
+            frm.set_df_property("custom_customer_feedback", "hidden", '1')
+          }
+        // if (frm.doc.category) {
+        //   const category_key = frappe.scrub(frm.doc.category); // Converts "Doubt" -> "doubt"
+    
+        //   frm.set_query("status", function () {
+        //     console.log("Category Key: ", category_key);
+        //       return {
+        //           filters: {
+        //               [category_key]: 1
+        //           }
+        //       };
+        //     });
+        //   }
       }
 });
 
@@ -113,7 +164,7 @@ function generateOAuth2Link(url, token) {
         scope: "openid",
         client_id: "cav84rjn8k",       // can get_value from the `oauth_client`
     });
-    const fullUrl = `http://127.0.0.1:8088/api/method/frappe.integrations.oauth2.authorize?${params.toString()}`;
+    const fullUrl = `${url}/api/method/frappe.integrations.oauth2.authorize?${params.toString()}`;
 
     return fullUrl;
 }
