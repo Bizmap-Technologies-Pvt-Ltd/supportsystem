@@ -6,6 +6,7 @@ from frappe.utils import now_datetime, add_days
 import re
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Concat_ws
+import base64
 
 
 
@@ -40,7 +41,7 @@ def custom_new(doc=None, attachments=None):
 
     # frappe.throw("custom_new")
     doc["doctype"] = "Issue"
-    doc["via_customer_portal"] = bool(frappe.session.user)
+    # doc["via_customer_portal"] = bool(frappe.session.user)
 
     d = frappe.get_doc(doc)
     d.save(ignore_permissions=True)
@@ -77,7 +78,7 @@ def trigger_n8n_webhook(title, description):
 	
 	headers = {
         # "Authorization": "Bearer be355f6a4d1d3c5:a14859a0c933867"  # Replace with your actual API key
-        "Authorization": "Bearer be355f6a4d1d3c5:a14859a0c933867"  # Replace with your actual API key
+        "Authorization": "Bearer 5e03df551ab107a:51ea0fbb65e765b"  # Replace with your actual API key
     }
 	# Send the data to the n8n webhook
 	response = requests.post(webhook_url, headers=headers, json=payload)
@@ -152,7 +153,7 @@ def auto_close_ticket():
         },
         fields=["name"]
     )
-
+    
     for ticket in tickets:
         doc = frappe.get_doc("Ticket Details", ticket.name)
         doc.status = "Closed"
@@ -208,10 +209,43 @@ def sync_timeline_to_support_system(doc):
                     "notes": timeline_entry.notes,
                     "added_by": get_user_fullname(frappe.session.user),
                 }
-                response = requests.post(url, headers=headers, json=data)
                 frappe.log_error(f"URL: {url}\nHEADERS: {headers}\nDATA: {data}\nResponse: {response}","PUT Data info")
+                response = requests.post(url, headers=headers, json=data)
         except Exception as e:
             frappe.log_error(f"timeline sync error:\n\n {str(e)}")
+
+@frappe.whitelist(allow_guest=False)
+def sync_attachment(file_name, attached_to_doctype, attached_to_name, content):
+    import base64, os, frappe
+
+    # Decode base64 content
+    file_content = base64.b64decode(content)
+
+    # Define public file path
+    file_path = frappe.get_site_path("public", "files", file_name)
+
+    # Write file to disk FIRST
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+
+    uploader_email = data["uploaded_by"]["email"]
+	uploader_name = data["uploaded_by"]["full_name"]
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": file_name,
+        "attached_to_doctype": attached_to_doctype,
+        "attached_to_name": attached_to_name,
+        "file_url": f"/files/{file_name}",
+        "is_private": 0,
+        "decode": True,
+		"attached_by": uploader_email
+    })
+    # Save after file is already on disk
+    file_doc.save()
+
+    return {"status": "success", "file_url": file_doc.file_url}
+
 
 def get_user_fullname(user: str) -> str:
 	user_doctype = DocType("User")
